@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gold-alert",
+  "main": "worker/src/index.js",
+  "compatibility_date": "2025-10-01",
+  "assets": {
+    "directory": "./web",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  // After creating the D1 database, replace database_id with the real ID from:
+  //   npx wrangler d1 create gold-alert-db
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gold-alert-db",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+    }
+  ]
+  // Secrets (set via CLI, never commit):
+  //   npx wrangler secret put API_TOKEN
+  //   npx wrangler secret put TELEGRAM_BOT_TOKEN
+  //   npx wrangler secret put TELEGRAM_CHAT_ID
+}
