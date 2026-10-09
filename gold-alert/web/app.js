@@ -14,6 +14,8 @@
   let localAlerts = [];
   let refreshTimer = null;
   let toastTimer = null;
+  let stepHydrated = false;
+  let capturedStep = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -205,8 +207,11 @@
     $("bid").textContent = formatPrice(data.bid);
     $("ask").textContent = formatPrice(data.ask);
     renderEaStatus(!!data.ea_online);
-    if (data.step != null && document.activeElement !== $("step-input")) {
-      $("step-input").value = String(data.step);
+    // Do not overwrite the interval the user is editing. Status polling used to
+    // reset the box back to the last saved server value (often 5).
+    if (!stepHydrated && data.step != null) {
+      setStepInput(data.step);
+      stepHydrated = true;
     }
     $("last-refresh").textContent =
       "刷新 " + new Date().toLocaleTimeString("zh-CN", { hour12: false });
@@ -268,9 +273,26 @@
     return localAlerts;
   }
 
+  function setStepInput(value) {
+    if (value == null || !Number.isFinite(Number(value))) return;
+    const n = Number(value);
+    $("step-input").value = Number.isInteger(n) ? String(n) : String(n);
+  }
+
+  function readStep() {
+    const raw = capturedStep != null ? capturedStep : Number($("step-input").value);
+    capturedStep = null;
+    return Number(raw);
+  }
+
+  function rememberStep() {
+    const n = Number($("step-input").value);
+    if (Number.isFinite(n) && n > 0) capturedStep = n;
+  }
+
   async function saveAlerts() {
     collectAlertsFromDom();
-    const step = Number($("step-input").value);
+    const step = readStep();
     if (!Number.isFinite(step) || step <= 0) {
       toast("间隔必须是大于 0 的数字", "error");
       return;
@@ -302,6 +324,7 @@
         price: String(a.price),
       }));
       renderAlerts();
+      setStepInput(step);
       toast("设置已保存", "success");
       await refreshStatus();
     } catch (e) {
@@ -312,11 +335,12 @@
   }
 
   async function autoGenerate() {
-    const step = Number($("step-input").value);
+    const step = readStep();
     if (!Number.isFinite(step) || step <= 0) {
       toast("间隔必须是大于 0 的数字", "error");
       return;
     }
+    setStepInput(step);
 
     try {
       $("btn-auto").disabled = true;
@@ -336,6 +360,7 @@
         price: String(a.price),
       }));
       renderAlerts();
+      setStepInput(data.step != null ? data.step : step);
       toast(data.message || "已自动生成", "success");
       await refreshStatus();
     } catch (e) {
@@ -367,10 +392,12 @@
     localAlerts = [];
     renderAlerts();
     try {
-      const step = Number($("step-input").value) || 5;
+      const step = readStep();
+      const savedStep = Number.isFinite(step) && step > 0 ? step : 5;
+      setStepInput(savedStep);
       await api("/api/alerts", {
         method: "POST",
-        body: JSON.stringify({ alerts: [], step }),
+        body: JSON.stringify({ alerts: [], step: savedStep }),
       });
       toast("已全部清除", "success");
     } catch (e) {
@@ -392,9 +419,11 @@
       showAuth();
     });
     $("btn-save").addEventListener("click", saveAlerts);
+    $("btn-auto").addEventListener("pointerdown", rememberStep);
     $("btn-auto").addEventListener("click", autoGenerate);
     $("btn-add").addEventListener("click", addAlert);
     $("btn-clear").addEventListener("click", clearAll);
+    $("step-input").addEventListener("input", rememberStep);
   }
 
   async function init() {
