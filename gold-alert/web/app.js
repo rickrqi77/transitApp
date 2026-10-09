@@ -410,7 +410,7 @@
       localAlerts = mapAlerts(data.alerts);
       renderAlerts();
       setStepInput(data.step != null ? data.step : step);
-      toast(data.message || "已生成，请点「触发」后保存", "success");
+      toast(data.message || "已生成，默认全部触发", "success");
       await refreshStatus();
     } catch (e) {
       if (e.code === "EA_OFFLINE" || (e.data && e.data.code === "EA_OFFLINE")) {

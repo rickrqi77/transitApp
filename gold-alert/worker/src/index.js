@@ -9,7 +9,6 @@
 
 const EA_OFFLINE_SECONDS = 15;
 const MAX_ALERTS = 10;
-const TRIGGER_DEBOUNCE_MS = 3000;
 
 export default {
   async fetch(request, env, ctx) {
@@ -298,7 +297,7 @@ async function autoGenerateAlerts(request, env) {
     env.DB.prepare("DELETE FROM alerts"),
     ...prices.map((p) =>
       env.DB.prepare(
-        "INSERT INTO alerts (price, enabled, triggered, created_at, updated_at) VALUES (?, 0, 0, datetime('now'), datetime('now'))"
+        "INSERT INTO alerts (price, enabled, triggered, created_at, updated_at) VALUES (?, 1, 0, datetime('now'), datetime('now'))"
       ).bind(p)
     ),
     env.DB.prepare(
@@ -313,7 +312,7 @@ async function autoGenerateAlerts(request, env) {
 
   return json({
     ok: true,
-    message: "已生成，请点「触发」后保存",
+    message: "已生成，默认全部触发",
     base_price: currentPrice,
     step,
     alerts: results || [],
