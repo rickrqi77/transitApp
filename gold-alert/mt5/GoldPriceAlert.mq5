@@ -6,7 +6,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Gold Alert System"
 #property link      ""
-#property version   "1.03"
+#property version   "1.04"
 #property description "XAUUSD gold price alert EA. Syncs with Cloudflare API."
 
 //--- inputs
@@ -18,7 +18,7 @@ input bool   InpEnableTelegram  = true;                               // Notify 
 input bool   InpVerboseLog      = false;                              // true = log every heartbeat/price (fills Experts log)
 
 //--- constants
-#define MAX_ALERTS           10
+#define MAX_ALERTS           11
 #define HTTP_TIMEOUT_MS      8000
 #define LOG_PREFIX           "[GoldAlert] "
 

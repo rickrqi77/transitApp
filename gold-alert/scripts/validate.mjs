@@ -10,8 +10,9 @@ function roundPrice(p) {
 function autoGenerate(currentPrice, step) {
   const base = Math.trunc(currentPrice);
   const prices = [];
-  for (let i = 5; i >= 1; i--) prices.push(roundPrice(base - step * i));
-  for (let i = 1; i <= 5; i++) prices.push(roundPrice(base + step * i));
+  for (let i = 5; i >= 1; i--) prices.push({ price: roundPrice(base - step * i), enabled: 1 });
+  prices.push({ price: roundPrice(base), enabled: 0 });
+  for (let i = 1; i <= 5; i++) prices.push({ price: roundPrice(base + step * i), enabled: 1 });
   return prices;
 }
 
@@ -20,20 +21,22 @@ function assert(cond, msg) {
 }
 
 const p1 = autoGenerate(4181.2, 5);
-assert(p1.length === 10, "expected 10 alerts");
-assert(!p1.includes(4181), "must not include integer base");
-assert(p1[0] === 4156, `got ${p1[0]}`);
-assert(p1[4] === 4176, `got ${p1[4]}`);
-assert(p1[5] === 4186, `got ${p1[5]}`);
-assert(p1[9] === 4206, `got ${p1[9]}`);
+assert(p1.length === 11, "expected 11 alerts");
+assert(p1[5].price === 4181 && p1[5].enabled === 0, "base off");
+assert(p1[0].price === 4156 && p1[0].enabled === 1, `got ${p1[0].price}`);
+assert(p1[4].price === 4176, `got ${p1[4].price}`);
+assert(p1[6].price === 4186 && p1[6].enabled === 1, `got ${p1[6].price}`);
+assert(p1[10].price === 4206, `got ${p1[10].price}`);
 
 const p2 = autoGenerate(4181.2, 10);
-assert(p2[0] === 4131, `step10 low got ${p2[0]}`);
-assert(p2[9] === 4231, `step10 high got ${p2[9]}`);
+assert(p2[0].price === 4131, `step10 low got ${p2[0].price}`);
+assert(p2[5].price === 4181 && p2[5].enabled === 0, "base off");
+assert(p2[10].price === 4231, `step10 high got ${p2[10].price}`);
 
 const p3 = autoGenerate(3978.25, 5);
-assert(p3[4] === 3973, `got ${p3[4]}`);
-assert(p3[5] === 3983, `got ${p3[5]}`);
+assert(p3[5].price === 3978 && p3[5].enabled === 0, `got ${p3[5].price}`);
+assert(p3[4].price === 3973, `got ${p3[4].price}`);
+assert(p3[6].price === 3983, `got ${p3[6].price}`);
 
 // Cross logic (mirror EA)
 function checkCross(prev, curr, ap, side) {

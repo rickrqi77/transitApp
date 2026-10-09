@@ -8,7 +8,7 @@
  */
 
 const EA_OFFLINE_SECONDS = 15;
-const MAX_ALERTS = 10;
+const MAX_ALERTS = 11;
 
 export default {
   async fetch(request, env, ctx) {
@@ -285,15 +285,16 @@ async function autoGenerateAlerts(request, env) {
   }
 
   const currentPrice = Number(status.price);
-  // Use the integer part as the grid base, e.g. 4181.2 → 4181
+  // Integer part is the center row, e.g. 4181.2 → 4181 (default off)
   const base = Math.trunc(currentPrice);
   const prices = [];
 
   for (let i = 5; i >= 1; i--) {
-    prices.push(roundPrice(base - step * i));
+    prices.push({ price: roundPrice(base - step * i), enabled: 1 });
   }
+  prices.push({ price: roundPrice(base), enabled: 0 });
   for (let i = 1; i <= 5; i++) {
-    prices.push(roundPrice(base + step * i));
+    prices.push({ price: roundPrice(base + step * i), enabled: 1 });
   }
 
   // Update step + replace alerts
@@ -304,8 +305,8 @@ async function autoGenerateAlerts(request, env) {
     env.DB.prepare("DELETE FROM alerts"),
     ...prices.map((p) =>
       env.DB.prepare(
-        "INSERT INTO alerts (price, enabled, triggered, created_at, updated_at) VALUES (?, 1, 0, datetime('now'), datetime('now'))"
-      ).bind(p)
+        "INSERT INTO alerts (price, enabled, triggered, created_at, updated_at) VALUES (?, ?, 0, datetime('now'), datetime('now'))"
+      ).bind(p.price, p.enabled)
     ),
     env.DB.prepare(
       "UPDATE system_status SET config_version = config_version + 1, updated_at = datetime('now') WHERE id = 1"

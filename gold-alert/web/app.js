@@ -6,7 +6,7 @@
 (function () {
   "use strict";
 
-  const MAX_ALERTS = 10;
+  const MAX_ALERTS = 11;
   const REFRESH_MS = 3000;
   const TOKEN_KEY = "gold_alert_api_token";
 
@@ -437,6 +437,7 @@
         body: JSON.stringify({ alerts: payload, step }),
       });
       localAlerts = mapAlerts(data.alerts);
+      alertsDirty = false;
       renderAlerts();
       setStepInput(step);
       toast("设置已保存，已同步到 EA", "success");
@@ -470,6 +471,7 @@
         body: JSON.stringify({ step }),
       });
       localAlerts = mapAlerts(data.alerts);
+      alertsDirty = false;
       renderAlerts();
       setStepInput(data.step != null ? data.step : step);
       toast(data.message || "已生成，默认全部触发", "success");
