@@ -278,15 +278,15 @@ async function autoGenerateAlerts(request, env) {
   }
 
   const currentPrice = Number(status.price);
+  // Use the integer part as the grid base, e.g. 4181.2 → 4181
+  const base = Math.trunc(currentPrice);
   const prices = [];
 
-  // Below: 5 levels (highest below first in generation, then sort)
   for (let i = 5; i >= 1; i--) {
-    prices.push(roundPrice(currentPrice - step * i));
+    prices.push(roundPrice(base - step * i));
   }
-  // Above: 5 levels
   for (let i = 1; i <= 5; i++) {
-    prices.push(roundPrice(currentPrice + step * i));
+    prices.push(roundPrice(base + step * i));
   }
 
   // Update step + replace alerts
@@ -313,7 +313,8 @@ async function autoGenerateAlerts(request, env) {
   return json({
     ok: true,
     message: "已生成，默认全部触发",
-    base_price: currentPrice,
+    base_price: base,
+    spot_price: currentPrice,
     step,
     alerts: results || [],
     config_version: ver?.config_version ?? 1,
