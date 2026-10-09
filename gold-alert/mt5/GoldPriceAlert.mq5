@@ -6,7 +6,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Gold Alert System"
 #property link      ""
-#property version   "1.01"
+#property version   "1.02"
 #property description "XAUUSD gold price alert EA. Syncs with Cloudflare API."
 
 //--- inputs
@@ -220,7 +220,8 @@ void CheckCrosses(const double prevPrice, const double currPrice)
             Print(LOG_PREFIX, "ALERT UP: ", FormatPrice(ap), "  curr=", FormatPrice(currPrice));
             if(InpEnableTelegram)
                SendTrigger(g_alerts[i].id, currPrice, ap, "UP");
-            g_alerts[i].side = 1; // now above — must go below again to re-arm UP
+            g_alerts[i].enabled = false; // one-shot: wait until user re-enables on web
+            g_alerts[i].side = 1;
          }
          else
          {
@@ -235,6 +236,7 @@ void CheckCrosses(const double prevPrice, const double currPrice)
             Print(LOG_PREFIX, "ALERT DOWN: ", FormatPrice(ap), "  curr=", FormatPrice(currPrice));
             if(InpEnableTelegram)
                SendTrigger(g_alerts[i].id, currPrice, ap, "DOWN");
+            g_alerts[i].enabled = false;
             g_alerts[i].side = -1;
          }
          else

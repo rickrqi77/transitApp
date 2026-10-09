@@ -10,7 +10,7 @@
   const REFRESH_MS = 3000;
   const TOKEN_KEY = "gold_alert_api_token";
 
-  /** @type {Array<{id?: number|null, price: string}>} */
+  /** @type {Array<{id?: number|null, price: string, enabled: boolean, triggered: boolean}>} */
   let localAlerts = [];
   let refreshTimer = null;
   let toastTimer = null;
@@ -140,18 +140,23 @@
     }
   }
 
+  function armCount() {
+    return localAlerts.filter((a) => a.enabled).length;
+  }
+
   function renderAlerts() {
     const list = $("alerts-list");
-    $("alerts-count").textContent = localAlerts.length + " / " + MAX_ALERTS;
+    $("alerts-count").textContent = "触发 " + armCount() + " / " + localAlerts.length;
     $("btn-add").disabled = localAlerts.length >= MAX_ALERTS;
 
     if (localAlerts.length === 0) {
-      list.innerHTML = '<li class="empty-hint">暂无提醒，请添加或自动生成</li>';
+      list.innerHTML = '<li class="empty-hint">暂无提醒，点「设定」生成后选择要触发的价格</li>';
       return;
     }
 
     list.innerHTML = "";
     localAlerts.forEach((a, idx) => {
+      const on = !!a.enabled;
       const li = document.createElement("li");
       li.className = "alert-item";
       li.innerHTML =
@@ -164,6 +169,13 @@
         '" data-idx="' +
         idx +
         '" />' +
+        '<button type="button" class="btn-arm ' +
+        (on ? "on" : "off") +
+        '" data-idx="' +
+        idx +
+        '">' +
+        (on ? "触发" : "关闭") +
+        "</button>" +
         '<button type="button" class="btn-delete" data-idx="' +
         idx +
         '">删除</button>';
@@ -173,6 +185,9 @@
     list.querySelectorAll(".alert-price-input").forEach((input) => {
       input.addEventListener("change", onPriceEdit);
       input.addEventListener("blur", onPriceEdit);
+    });
+    list.querySelectorAll(".btn-arm").forEach((btn) => {
+      btn.addEventListener("click", onArmClick);
     });
     list.querySelectorAll(".btn-delete").forEach((btn) => {
       btn.addEventListener("click", onDeleteClick);
@@ -189,11 +204,28 @@
     localAlerts[idx].price = e.target.value.trim();
   }
 
+  function onArmClick(e) {
+    const idx = Number(e.currentTarget.getAttribute("data-idx"));
+    if (!Number.isInteger(idx) || !localAlerts[idx]) return;
+    localAlerts[idx].enabled = !localAlerts[idx].enabled;
+    if (localAlerts[idx].enabled) localAlerts[idx].triggered = false;
+    renderAlerts();
+  }
+
   function onDeleteClick(e) {
     const idx = Number(e.currentTarget.getAttribute("data-idx"));
     if (!Number.isInteger(idx)) return;
     localAlerts.splice(idx, 1);
     renderAlerts();
+  }
+
+  function mapAlerts(list) {
+    return (list || []).map((a) => ({
+      id: a.id,
+      price: String(a.price),
+      enabled: a.enabled === true || a.enabled === 1,
+      triggered: a.triggered === true || a.triggered === 1,
+    }));
   }
 
   // -------------------------------------------------------------------------
@@ -220,10 +252,7 @@
 
   async function loadAlerts() {
     const data = await api("/api/alerts");
-    localAlerts = (data.alerts || []).map((a) => ({
-      id: a.id,
-      price: String(a.price),
-    }));
+    localAlerts = mapAlerts(data.alerts);
     renderAlerts();
   }
 
@@ -268,6 +297,8 @@
       localAlerts = Array.from(inputs).map((input, i) => ({
         id: localAlerts[i] ? localAlerts[i].id : null,
         price: input.value.trim(),
+        enabled: localAlerts[i] ? !!localAlerts[i].enabled : false,
+        triggered: localAlerts[i] ? !!localAlerts[i].triggered : false,
       }));
     }
     return localAlerts;
@@ -321,7 +352,11 @@
         toast("存在无效价格：" + a.price, "error");
         return;
       }
-      payload.push({ price: p, enabled: true });
+      payload.push({
+        price: p,
+        enabled: !!a.enabled,
+        triggered: a.enabled ? 0 : a.triggered ? 1 : 0,
+      });
     }
 
     if (payload.length > MAX_ALERTS) {
@@ -335,13 +370,10 @@
         method: "POST",
         body: JSON.stringify({ alerts: payload, step }),
       });
-      localAlerts = (data.alerts || []).map((a) => ({
-        id: a.id,
-        price: String(a.price),
-      }));
+      localAlerts = mapAlerts(data.alerts);
       renderAlerts();
       setStepInput(step);
-      toast("设置已保存", "success");
+      toast("设置已保存，已同步到 EA", "success");
       await refreshStatus();
     } catch (e) {
       toast(e.message, "error");
@@ -371,13 +403,10 @@
         method: "POST",
         body: JSON.stringify({ step }),
       });
-      localAlerts = (data.alerts || []).map((a) => ({
-        id: a.id,
-        price: String(a.price),
-      }));
+      localAlerts = mapAlerts(data.alerts);
       renderAlerts();
       setStepInput(data.step != null ? data.step : step);
-      toast(data.message || "已自动生成", "success");
+      toast(data.message || "已生成，请点「触发」后保存", "success");
       await refreshStatus();
     } catch (e) {
       if (e.code === "EA_OFFLINE" || (e.data && e.data.code === "EA_OFFLINE")) {
@@ -396,7 +425,7 @@
       toast("最多 " + MAX_ALERTS + " 个提醒", "error");
       return;
     }
-    localAlerts.push({ id: null, price: "" });
+    localAlerts.push({ id: null, price: "", enabled: false, triggered: false });
     renderAlerts();
     const inputs = document.querySelectorAll(".alert-price-input");
     const last = inputs[inputs.length - 1];

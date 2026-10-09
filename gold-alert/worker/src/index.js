@@ -212,8 +212,8 @@ async function saveAlerts(request, env) {
     env.DB.prepare("DELETE FROM alerts"),
     ...prices.map((p) =>
       env.DB.prepare(
-        "INSERT INTO alerts (price, enabled, triggered, created_at, updated_at) VALUES (?, ?, 0, datetime('now'), datetime('now'))"
-      ).bind(p.price, p.enabled)
+        "INSERT INTO alerts (price, enabled, triggered, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))"
+      ).bind(p.price, p.enabled, p.triggered)
     ),
     env.DB.prepare(
       "UPDATE system_status SET config_version = config_version + 1, updated_at = datetime('now') WHERE id = 1"
@@ -298,7 +298,7 @@ async function autoGenerateAlerts(request, env) {
     env.DB.prepare("DELETE FROM alerts"),
     ...prices.map((p) =>
       env.DB.prepare(
-        "INSERT INTO alerts (price, enabled, triggered, created_at, updated_at) VALUES (?, 1, 0, datetime('now'), datetime('now'))"
+        "INSERT INTO alerts (price, enabled, triggered, created_at, updated_at) VALUES (?, 0, 0, datetime('now'), datetime('now'))"
       ).bind(p)
     ),
     env.DB.prepare(
@@ -313,7 +313,7 @@ async function autoGenerateAlerts(request, env) {
 
   return json({
     ok: true,
-    message: "已自动生成 ±5 档提醒",
+    message: "已生成，请点「触发」后保存",
     base_price: currentPrice,
     step,
     alerts: results || [],
@@ -354,28 +354,6 @@ async function eaHeartbeat(request, env) {
     .bind(symbol, price, bid, ask, now, now)
     .run();
 
-  // Re-arm alerts after price returns to the opposite side of last trigger.
-  // Example: last UP → when price drops back below alert price, clear lock so next UP is allowed.
-  const { results: armed } = await env.DB.prepare(
-    "SELECT id, price, last_trigger_direction FROM alerts WHERE last_trigger_direction IS NOT NULL"
-  ).all();
-
-  for (const a of armed || []) {
-    if (a.last_trigger_direction === "UP" && price < a.price) {
-      await env.DB.prepare(
-        "UPDATE alerts SET last_trigger_direction = NULL, last_trigger_time = NULL, triggered = 0, updated_at = datetime('now') WHERE id = ?"
-      )
-        .bind(a.id)
-        .run();
-    } else if (a.last_trigger_direction === "DOWN" && price > a.price) {
-      await env.DB.prepare(
-        "UPDATE alerts SET last_trigger_direction = NULL, last_trigger_time = NULL, triggered = 0, updated_at = datetime('now') WHERE id = ?"
-      )
-        .bind(a.id)
-        .run();
-    }
-  }
-
   const status = await env.DB.prepare("SELECT config_version FROM system_status WHERE id = 1").first();
 
   return json({
@@ -388,7 +366,7 @@ async function eaHeartbeat(request, env) {
 async function getConfig(env) {
   const status = await env.DB.prepare("SELECT symbol, config_version FROM system_status WHERE id = 1").first();
   const { results } = await env.DB.prepare(
-    "SELECT id, price, enabled FROM alerts WHERE enabled = 1 ORDER BY price ASC"
+    "SELECT id, price, enabled FROM alerts WHERE enabled = 1 AND triggered = 0 ORDER BY price ASC"
   ).all();
 
   return json({
@@ -429,48 +407,28 @@ async function alertTrigger(request, env) {
   if (!alert) {
     return json({ error: "Alert not found" }, 404);
   }
-  if (!alert.enabled) {
-    return json({ error: "Alert disabled", skipped: true }, 200);
-  }
-
-  // Server-side duplicate prevention:
-  // Same direction as last trigger is rejected until price re-crosses (re-armed via heartbeat).
-  // Opposite direction is always allowed immediately (no debounce across directions).
-  if (alert.last_trigger_direction === direction) {
-    // Tiny race guard: identical direction within a few ms after insert
-    if (alert.last_trigger_time) {
-      const lastMs = Date.parse(alert.last_trigger_time);
-      if (Number.isFinite(lastMs) && Date.now() - lastMs < TRIGGER_DEBOUNCE_MS) {
-        return json({
-          ok: false,
-          skipped: true,
-          reason: "Debounced duplicate trigger",
-        });
-      }
-    }
-    return json({
-      ok: false,
-      skipped: true,
-      reason: "Same direction already triggered; waiting for opposite re-cross",
-    });
+  if (!alert.enabled || alert.triggered) {
+    return json({ error: "Alert disabled or already triggered", skipped: true }, 200);
   }
 
   const settings = await env.DB.prepare("SELECT telegram_enabled FROM settings WHERE id = 1").first();
-  const status = await env.DB.prepare("SELECT symbol FROM system_status WHERE id = 1").first();
-  const symbol = status?.symbol || "XAUUSD";
   const nowIso = new Date().toISOString();
 
   // Mark trigger state before sending Telegram
-  await env.DB.prepare(
-    `UPDATE alerts SET
-      triggered = 1,
-      last_trigger_direction = ?,
-      last_trigger_time = ?,
-      updated_at = datetime('now')
-     WHERE id = ?`
-  )
-    .bind(direction, nowIso, alertId)
-    .run();
+  await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE alerts SET
+        triggered = 1,
+        enabled = 0,
+        last_trigger_direction = ?,
+        last_trigger_time = ?,
+        updated_at = datetime('now')
+       WHERE id = ?`
+    ).bind(direction, nowIso, alertId),
+    env.DB.prepare(
+      "UPDATE system_status SET config_version = config_version + 1, updated_at = datetime('now') WHERE id = 1"
+    ),
+  ]);
 
   let telegramSent = false;
   let telegramError = null;
