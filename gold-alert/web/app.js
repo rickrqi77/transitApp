@@ -16,6 +16,7 @@
   let toastTimer = null;
   let stepHydrated = false;
   let capturedStep = null;
+  let alertsPaused = false;
 
   const $ = (id) => document.getElementById(id);
 
@@ -124,6 +125,35 @@
     // Prefer 2 decimals for gold; keep more if needed
     const s = v.toFixed(Math.abs(v - Math.round(v * 100) / 100) < 1e-9 ? 2 : 3);
     return s;
+  }
+
+  function renderPauseButton() {
+    const btn = $("btn-pause");
+    if (!btn) return;
+    if (alertsPaused) {
+      btn.textContent = "恢复提醒";
+      btn.classList.add("resume");
+    } else {
+      btn.textContent = "暂停提醒";
+      btn.classList.remove("resume");
+    }
+  }
+
+  async function togglePause() {
+    try {
+      $("btn-pause").disabled = true;
+      const data = await api("/api/pause", {
+        method: "POST",
+        body: JSON.stringify({ paused: !alertsPaused }),
+      });
+      alertsPaused = !!data.paused;
+      renderPauseButton();
+      toast(data.message || (alertsPaused ? "提醒已暂停" : "提醒已恢复"), "success");
+    } catch (e) {
+      toast(e.message, "error");
+    } finally {
+      $("btn-pause").disabled = false;
+    }
   }
 
   function renderEaStatus(online) {
@@ -238,6 +268,8 @@
     $("bid").textContent = formatPrice(data.bid);
     $("ask").textContent = formatPrice(data.ask);
     renderEaStatus(!!data.ea_online);
+    alertsPaused = !!data.paused || data.alerts_enabled === false;
+    renderPauseButton();
     // Do not overwrite the interval the user is editing. Status polling used to
     // reset the box back to the last saved server value (often 5).
     if (!stepHydrated && data.step != null) {
@@ -460,6 +492,7 @@
     $("btn-auto").addEventListener("click", autoGenerate);
     $("btn-clear").addEventListener("click", clearAll);
     $("step-input").addEventListener("change", rememberStep);
+    $("btn-pause").addEventListener("click", togglePause);
   }
 
   async function init() {

@@ -180,6 +180,22 @@ body {
   background: var(--red);
 }
 
+.btn-pause {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  margin: 16px auto 0;
+  background: rgba(231, 76, 60, 0.12);
+  color: var(--red);
+  border: 1px solid rgba(231, 76, 60, 0.4);
+}
+
+.btn-pause.resume {
+  background: rgba(46, 204, 113, 0.14);
+  color: var(--green);
+  border-color: rgba(46, 204, 113, 0.4);
+}
+
 /* Panels */
 .panel {
   background: var(--bg-elevated);

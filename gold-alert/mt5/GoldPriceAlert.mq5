@@ -6,7 +6,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Gold Alert System"
 #property link      ""
-#property version   "1.02"
+#property version   "1.03"
 #property description "XAUUSD gold price alert EA. Syncs with Cloudflare API."
 
 //--- inputs
@@ -418,6 +418,15 @@ bool FetchConfig(const double currentPrice)
    if(version == g_configVersion && g_alertCount >= 0 && g_configVersion >= 0)
    {
       // No change
+      return true;
+   }
+
+   bool alertsEnabled = JsonGetBool(resp, "alerts_enabled", true);
+   if(!alertsEnabled)
+   {
+      ResetAlerts();
+      g_configVersion = version;
+      Print(LOG_PREFIX, "Remote pause: alerts disabled");
       return true;
    }
 

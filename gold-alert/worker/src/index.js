@@ -82,6 +82,9 @@ async function handleApi(request, env, url) {
   if (method === "POST" && path === "/api/settings") {
     return await saveSettings(request, env);
   }
+  if (method === "POST" && path === "/api/pause") {
+    return await setPause(request, env);
+  }
 
   return json({ error: "Not found" }, 404);
 }
@@ -127,7 +130,9 @@ function checkAuth(request, env) {
 
 async function getStatus(env) {
   const status = await env.DB.prepare("SELECT * FROM system_status WHERE id = 1").first();
-  const settings = await env.DB.prepare("SELECT step, telegram_enabled FROM settings WHERE id = 1").first();
+  const settings = await env.DB.prepare(
+    "SELECT step, telegram_enabled, alerts_enabled FROM settings WHERE id = 1"
+  ).first();
   const countRow = await env.DB.prepare("SELECT COUNT(*) AS c FROM alerts").first();
 
   const lastSeen = status?.last_seen || null;
@@ -143,6 +148,8 @@ async function getStatus(env) {
     alerts_count: countRow?.c ?? 0,
     step: settings?.step ?? 5,
     telegram_enabled: !!(settings?.telegram_enabled),
+    alerts_enabled: settings?.alerts_enabled === 0 ? false : true,
+    paused: settings?.alerts_enabled === 0,
     config_version: status?.config_version ?? 1,
   });
 }
@@ -365,13 +372,21 @@ async function eaHeartbeat(request, env) {
 
 async function getConfig(env) {
   const status = await env.DB.prepare("SELECT symbol, config_version FROM system_status WHERE id = 1").first();
-  const { results } = await env.DB.prepare(
-    "SELECT id, price, enabled FROM alerts WHERE enabled = 1 AND triggered = 0 ORDER BY price ASC"
-  ).all();
+  const settings = await env.DB.prepare("SELECT alerts_enabled FROM settings WHERE id = 1").first();
+  const alertsEnabled = settings?.alerts_enabled !== 0;
+
+  let results = [];
+  if (alertsEnabled) {
+    const q = await env.DB.prepare(
+      "SELECT id, price, enabled FROM alerts WHERE enabled = 1 AND triggered = 0 ORDER BY price ASC"
+    ).all();
+    results = q.results || [];
+  }
 
   return json({
     symbol: status?.symbol || "XAUUSD",
-    alerts: (results || []).map((a) => ({
+    alerts_enabled: alertsEnabled,
+    alerts: results.map((a) => ({
       id: a.id,
       price: a.price,
       enabled: !!a.enabled,
@@ -401,6 +416,11 @@ async function alertTrigger(request, env) {
   }
   if (direction !== "UP" && direction !== "DOWN") {
     return json({ error: "direction must be UP or DOWN" }, 400);
+  }
+
+  const pauseRow = await env.DB.prepare("SELECT alerts_enabled FROM settings WHERE id = 1").first();
+  if (pauseRow && pauseRow.alerts_enabled === 0) {
+    return json({ ok: false, skipped: true, reason: "Remote pause" });
   }
 
   const alert = await env.DB.prepare("SELECT * FROM alerts WHERE id = ?").bind(alertId).first();
@@ -459,11 +479,13 @@ async function alertTrigger(request, env) {
 
 async function getSettings(env) {
   const settings = await env.DB.prepare(
-    "SELECT step, telegram_enabled, updated_at FROM settings WHERE id = 1"
+    "SELECT step, telegram_enabled, alerts_enabled, updated_at FROM settings WHERE id = 1"
   ).first();
   return json({
     step: settings?.step ?? 5,
     telegram_enabled: !!(settings?.telegram_enabled),
+    alerts_enabled: settings?.alerts_enabled === 0 ? false : true,
+    paused: settings?.alerts_enabled === 0,
     updated_at: settings?.updated_at ?? null,
   });
 }
@@ -493,6 +515,12 @@ async function saveSettings(request, env) {
     binds.push(body.telegram_enabled ? 1 : 0);
   }
 
+  if (body.alerts_enabled != null || body.paused != null) {
+    const enabled = body.alerts_enabled != null ? !!body.alerts_enabled : !body.paused;
+    updates.push("alerts_enabled = ?");
+    binds.push(enabled ? 1 : 0);
+  }
+
   if (updates.length === 0) {
     return json({ error: "No settings to update" }, 400);
   }
@@ -502,7 +530,37 @@ async function saveSettings(request, env) {
     .bind(...binds)
     .run();
 
+  if (body.alerts_enabled != null || body.paused != null) {
+    await env.DB.prepare(
+      "UPDATE system_status SET config_version = config_version + 1, updated_at = datetime('now') WHERE id = 1"
+    ).run();
+  }
+
   return await getSettings(env);
+}
+
+async function setPause(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const paused = body.paused === true || body.paused === 1 || body.alerts_enabled === false;
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE settings SET alerts_enabled = ?, updated_at = datetime('now') WHERE id = 1"
+    ).bind(paused ? 0 : 1),
+    env.DB.prepare(
+      "UPDATE system_status SET config_version = config_version + 1, updated_at = datetime('now') WHERE id = 1"
+    ),
+  ]);
+  return json({
+    ok: true,
+    paused,
+    alerts_enabled: !paused,
+    message: paused ? "提醒已暂停" : "提醒已恢复",
+  });
 }
 
 // ---------------------------------------------------------------------------
