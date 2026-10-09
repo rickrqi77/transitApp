@@ -2,19 +2,18 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "gold-alert",
   "main": "worker/src/index.js",
+  "account_id": "33b860554fbcb24db639ae34ad2ea919",
   "compatibility_date": "2025-10-01",
   "assets": {
     "directory": "./web",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
-  // After creating the D1 database, replace database_id with the real ID from:
-  //   npx wrangler d1 create gold-alert-db
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "gold-alert-db",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+      "database_id": "9da0baf0-88bb-4771-8be6-c01532699203"
     }
   ]
   // Secrets (set via CLI, never commit):
