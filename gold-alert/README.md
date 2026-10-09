@@ -486,6 +486,11 @@ XAUUSD
 
 把 EA 拖到实际黄金图表上，`InpSymbol` **留空**即可自动使用图表品种。
 
+### Q: EA 日志会不会把硬盘写满？
+
+默认不会。心跳和报价不再每 3 秒写日志，只在启动、配置变化、触发提醒或出错时记录。  
+MT5 日志在数据文件夹的 `Logs` / `MQL5\Logs`，通常按天分文件。旧日志可手动删除。需要详细报价日志时，把 EA 参数 `InpVerboseLog` 设为 `true`。
+
 ### Q: 手机 Token 忘了？
 
 Token 存在 Cloudflare Secret 中。你可以用原来的字符串重新输入；若忘记，重新 `secret put API_TOKEN` 并同步更新 EA 参数。
