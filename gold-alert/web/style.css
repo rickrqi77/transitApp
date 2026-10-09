@@ -240,8 +240,13 @@ body {
 }
 
 .input-step {
-  flex: 0 0 100px;
+  flex: 0 0 108px;
   text-align: center;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%8a8a8a' d='M1 1l5 5 5-5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color-scheme: dark;
 }
 
 .alert-price-input {

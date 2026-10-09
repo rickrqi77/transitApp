@@ -273,10 +273,26 @@
     return localAlerts;
   }
 
-  function setStepInput(value) {
-    if (value == null || !Number.isFinite(Number(value))) return;
+  const STEP_OPTIONS = [1, 2, 3, 4, 5, 10];
+
+  function nearestStep(value) {
     const n = Number(value);
-    $("step-input").value = Number.isInteger(n) ? String(n) : String(n);
+    if (!Number.isFinite(n) || n <= 0) return 5;
+    if (STEP_OPTIONS.indexOf(n) >= 0) return n;
+    let best = 5;
+    let bestDiff = Infinity;
+    for (let i = 0; i < STEP_OPTIONS.length; i++) {
+      const d = Math.abs(STEP_OPTIONS[i] - n);
+      if (d < bestDiff) {
+        bestDiff = d;
+        best = STEP_OPTIONS[i];
+      }
+    }
+    return best;
+  }
+
+  function setStepInput(value) {
+    $("step-input").value = String(nearestStep(value));
   }
 
   function readStep() {
@@ -424,7 +440,7 @@
     $("btn-auto").addEventListener("click", autoGenerate);
     $("btn-add").addEventListener("click", addAlert);
     $("btn-clear").addEventListener("click", clearAll);
-    $("step-input").addEventListener("input", rememberStep);
+    $("step-input").addEventListener("change", rememberStep);
   }
 
   async function init() {

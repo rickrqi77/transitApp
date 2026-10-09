@@ -53,13 +53,14 @@
     <section class="panel">
       <label class="field-label" for="step-input">间隔</label>
       <div class="row">
-        <input
-          id="step-input"
-          class="input input-step"
-          type="text"
-          inputmode="decimal"
-          value="5"
-        />
+        <select id="step-input" class="input input-step" aria-label="间隔">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5" selected>5</option>
+          <option value="10">10</option>
+        </select>
         <button id="btn-auto" class="btn btn-accent" type="button">设定</button>
       </div>
     </section>
@@ -84,6 +85,6 @@
     </footer>
   </div>
 
-  <script src="/app.js?v=3"></script>
+  <script src="/app.js?v=4"></script>
 </body>
 </html>
