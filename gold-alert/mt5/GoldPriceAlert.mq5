@@ -6,7 +6,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Gold Alert System"
 #property link      ""
-#property version   "1.00"
+#property version   "1.01"
 #property description "XAUUSD gold price alert EA. Syncs with Cloudflare API."
 
 //--- inputs
@@ -15,6 +15,7 @@ input string InpApiToken        = "";                                 // API Tok
 input string InpSymbol          = "";                                 // Empty = chart symbol
 input int    InpSyncSeconds     = 3;                                  // Server sync interval (seconds)
 input bool   InpEnableTelegram  = true;                               // Notify Cloudflare on trigger (Telegram via Worker)
+input bool   InpVerboseLog      = false;                              // true = log every heartbeat/price (fills Experts log)
 
 //--- constants
 #define MAX_ALERTS           10
@@ -38,7 +39,9 @@ string     g_symbol         = "";
 double     g_prevMid        = 0.0;
 bool       g_hasPrevPrice   = false;
 bool       g_apiOk          = false;
+bool       g_loggedApiOk    = false;
 datetime   g_lastSyncTime   = 0;
+datetime   g_lastErrorLog   = 0;
 
 //+------------------------------------------------------------------+
 //| Expert initialization                                            |
@@ -258,11 +261,12 @@ void SyncWithServer()
    double bid = 0.0, ask = 0.0, mid = 0.0;
    if(!GetPrices(bid, ask, mid))
    {
-      Print(LOG_PREFIX, "ERROR: Cannot read prices for ", g_symbol);
+      LogErrorThrottled("ERROR: Cannot read prices for " + g_symbol);
       return;
    }
 
-   Print(LOG_PREFIX, "Price: ", FormatPrice(mid), "  bid=", FormatPrice(bid), "  ask=", FormatPrice(ask));
+   if(InpVerboseLog)
+      Print(LOG_PREFIX, "Price: ", FormatPrice(mid), "  bid=", FormatPrice(bid), "  ask=", FormatPrice(ask));
 
    // Heartbeat
    if(!PostHeartbeat(bid, ask, mid))
@@ -277,6 +281,15 @@ void SyncWithServer()
 //+------------------------------------------------------------------+
 //| HTTP helpers                                                     |
 //+------------------------------------------------------------------+
+void LogErrorThrottled(const string msg)
+{
+   datetime now = TimeCurrent();
+   if(g_lastErrorLog != 0 && (now - g_lastErrorLog) < 60)
+      return;
+   g_lastErrorLog = now;
+   Print(LOG_PREFIX, msg);
+}
+
 string NormalizeBaseUrl()
 {
    string base = InpApiBaseUrl;
@@ -316,22 +329,16 @@ bool HttpRequest(const string method, const string url, const string body,
 
    if(code == -1)
    {
-      Print(LOG_PREFIX, "ERROR: WebRequest failed. Error=", err);
+      string msg = "ERROR: WebRequest failed. Error=" + IntegerToString(err);
       if(err == 4060)
-      {
-         Print(LOG_PREFIX, "ERROR: URL not allowed. Open MT5 → Tools → Options → Expert Advisors");
-         Print(LOG_PREFIX, "ERROR: Enable 'Allow WebRequest for listed URL' and add:");
-         Print(LOG_PREFIX, "ERROR:   ", NormalizeBaseUrl());
-      }
+         msg += " | Add URL in Tools → Options → Expert Advisors → Allow WebRequest: " + NormalizeBaseUrl();
       else if(err == 4014)
-      {
-         Print(LOG_PREFIX, "ERROR: WebRequest not allowed / function not permitted");
-      }
+         msg += " | WebRequest not permitted";
       else
-      {
-         Print(LOG_PREFIX, "ERROR: Check network / URL / SSL. Base URL=", NormalizeBaseUrl());
-      }
+         msg += " | Check network / URL / SSL. Base URL=" + NormalizeBaseUrl();
+      LogErrorThrottled(msg);
       g_apiOk = false;
+      g_loggedApiOk = false;
       return false;
    }
 
@@ -340,8 +347,9 @@ bool HttpRequest(const string method, const string url, const string body,
 
    if(code < 200 || code >= 300)
    {
-      Print(LOG_PREFIX, "ERROR: HTTP ", code, "  body=", StringSubstr(outBody, 0, 200));
+      LogErrorThrottled("ERROR: HTTP " + IntegerToString(code) + "  body=" + StringSubstr(outBody, 0, 200));
       g_apiOk = false;
+      g_loggedApiOk = false;
       return false;
    }
 
@@ -375,8 +383,6 @@ bool PostHeartbeat(const double bid, const double ask, const double price)
       // Will refresh in FetchConfig
    }
 
-   if(!g_apiOk)
-      Print(LOG_PREFIX, "API connected"); // first success logged below
    return true;
 }
 
@@ -390,20 +396,20 @@ bool FetchConfig(const double currentPrice)
    int status;
    if(!HttpRequest("GET", url, "", resp, status))
    {
-      Print(LOG_PREFIX, "ERROR: Invalid API response (config)");
+      LogErrorThrottled("ERROR: Invalid API response (config)");
       return false;
    }
 
    if(StringFind(resp, "\"alerts\"") < 0 && StringFind(resp, "version") < 0)
    {
-      Print(LOG_PREFIX, "ERROR: JSON parse failed (config missing fields)");
+      LogErrorThrottled("ERROR: JSON parse failed (config missing fields)");
       return false;
    }
 
    int version = JsonGetInt(resp, "version", -1);
    if(version < 0)
    {
-      Print(LOG_PREFIX, "ERROR: JSON parse failed (version)");
+      LogErrorThrottled("ERROR: JSON parse failed (version)");
       return false;
    }
 
@@ -428,7 +434,7 @@ bool FetchConfig(const double currentPrice)
    int pos = StringFind(resp, "\"alerts\"");
    if(pos < 0)
    {
-      Print(LOG_PREFIX, "ERROR: JSON parse failed (alerts)");
+      LogErrorThrottled("ERROR: JSON parse failed (alerts)");
       return false;
    }
 
@@ -436,7 +442,7 @@ bool FetchConfig(const double currentPrice)
    int arrEnd   = FindMatchingBracket(resp, arrStart, '[', ']');
    if(arrStart < 0 || arrEnd < 0)
    {
-      Print(LOG_PREFIX, "ERROR: JSON parse failed (alerts array)");
+      LogErrorThrottled("ERROR: JSON parse failed (alerts array)");
       return false;
    }
 
@@ -496,11 +502,18 @@ bool FetchConfig(const double currentPrice)
       }
    }
 
-   Print(LOG_PREFIX, "API connected");
+   if(!g_loggedApiOk)
+   {
+      Print(LOG_PREFIX, "API connected");
+      g_loggedApiOk = true;
+   }
    Print(LOG_PREFIX, "Config version: ", g_configVersion);
    Print(LOG_PREFIX, "Loaded ", g_alertCount, " alerts");
-   for(int i = 0; i < g_alertCount; i++)
-      Print(LOG_PREFIX, "  Alert[", g_alerts[i].id, "] = ", FormatPrice(g_alerts[i].price));
+   if(InpVerboseLog)
+   {
+      for(int i = 0; i < g_alertCount; i++)
+         Print(LOG_PREFIX, "  Alert[", g_alerts[i].id, "] = ", FormatPrice(g_alerts[i].price));
+   }
 
    return true;
 }
