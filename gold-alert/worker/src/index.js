@@ -179,9 +179,12 @@ async function saveAlerts(request, env) {
     if (!Number.isFinite(p) || p <= 0) {
       return json({ error: `Invalid price: ${a.price}` }, 400);
     }
+    const enabled = a.enabled === false || a.enabled === 0 ? 0 : 1;
     prices.push({
       price: roundPrice(p),
-      enabled: a.enabled === false || a.enabled === 0 ? 0 : 1,
+      enabled,
+      // Re-arm only when the user explicitly turns 触发 on.
+      triggered: enabled ? 0 : (a.triggered ? 1 : 0),
     });
   }
 
@@ -475,11 +478,8 @@ async function alertTrigger(request, env) {
   if (settings?.telegram_enabled) {
     try {
       const result = await sendTelegramAlert(env, {
-        symbol,
         triggerPrice: alert.price,
         currentPrice,
-        direction,
-        timeIso: nowIso,
       });
       telegramSent = result.ok;
       if (!result.ok) telegramError = result.error;
@@ -551,7 +551,7 @@ async function saveSettings(request, env) {
 // Telegram
 // ---------------------------------------------------------------------------
 
-async function sendTelegramAlert(env, { symbol, triggerPrice, currentPrice, direction, timeIso }) {
+async function sendTelegramAlert(env, { triggerPrice, currentPrice }) {
   const botToken = env.TELEGRAM_BOT_TOKEN;
   const chatId = env.TELEGRAM_CHAT_ID;
 
@@ -559,16 +559,9 @@ async function sendTelegramAlert(env, { symbol, triggerPrice, currentPrice, dire
     return { ok: false, error: "TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured" };
   }
 
-  const dirText = direction === "UP" ? "↑ 上涨" : "↓ 下跌";
-  const jstTime = formatJst(timeIso);
-
   const text =
-    `🔔 GOLD PRICE ALERT\n\n` +
-    `${symbol}\n\n` +
     `触发价：${formatNum(triggerPrice)}\n` +
-    `当前价：${formatNum(currentPrice)}\n\n` +
-    `方向：${dirText}\n\n` +
-    `时间：${jstTime}`;
+    `当前价：${formatNum(currentPrice)}`;
 
   const apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
   const resp = await fetch(apiUrl, {
@@ -589,26 +582,6 @@ async function sendTelegramAlert(env, { symbol, triggerPrice, currentPrice, dire
     };
   }
   return { ok: true };
-}
-
-function formatJst(iso) {
-  try {
-    const d = new Date(iso);
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Tokyo",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    }).formatToParts(d);
-    const get = (t) => parts.find((p) => p.type === t)?.value || "";
-    return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")} JST`;
-  } catch {
-    return iso + " JST";
-  }
 }
 
 // ---------------------------------------------------------------------------

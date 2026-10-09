@@ -429,16 +429,8 @@ Authorization: Bearer <API_TOKEN>
 Telegram 消息示例：
 
 ```
-🔔 GOLD PRICE ALERT
-
-XAUUSD
-
 触发价：3983.25
 当前价：3983.31
-
-方向：↑ 上涨
-
-时间：2026-10-08 12:35:21 JST
 ```
 
 ---
