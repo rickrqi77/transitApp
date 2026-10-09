@@ -13,7 +13,7 @@
 input string InpApiBaseUrl      = "https://your-worker.workers.dev"; // Cloudflare Worker base URL (no trailing slash)
 input string InpApiToken        = "";                                 // API Token (same as Worker secret API_TOKEN)
 input string InpSymbol          = "";                                 // Empty = chart symbol
-input int    InpSyncSeconds     = 3;                                  // Server sync interval (seconds)
+input int    InpSyncSeconds     = 1;                                  // Server sync interval (seconds)
 input bool   InpEnableTelegram  = true;                               // Notify Cloudflare on trigger (Telegram via Worker)
 input bool   InpVerboseLog      = false;                              // true = log every heartbeat/price (fills Experts log)
 

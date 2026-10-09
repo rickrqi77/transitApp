@@ -7,7 +7,7 @@
   "use strict";
 
   const MAX_ALERTS = 11;
-  const REFRESH_MS = 3000;
+  const REFRESH_MS = 1000;
   const TOKEN_KEY = "gold_alert_api_token";
 
   /** @type {Array<{id?: number|null, price: string, enabled: boolean, triggered: boolean}>} */
