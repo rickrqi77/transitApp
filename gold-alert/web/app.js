@@ -147,7 +147,6 @@
   function renderAlerts() {
     const list = $("alerts-list");
     $("alerts-count").textContent = "触发 " + armCount() + " / " + localAlerts.length;
-    $("btn-add").disabled = localAlerts.length >= MAX_ALERTS;
 
     if (localAlerts.length === 0) {
       list.innerHTML = '<li class="empty-hint">暂无提醒，点「设定」生成后选择要触发的价格</li>';
@@ -364,6 +363,11 @@
       return;
     }
 
+    const armed = payload.filter((a) => a.enabled).length;
+    if (payload.length > 0 && armed === 0) {
+      if (!confirm("没有点「触发」的价格，EA 不会提醒。仍要保存吗？")) return;
+    }
+
     try {
       $("btn-save").disabled = true;
       const data = await api("/api/alerts", {
@@ -419,19 +423,6 @@
     }
   }
 
-  function addAlert() {
-    collectAlertsFromDom();
-    if (localAlerts.length >= MAX_ALERTS) {
-      toast("最多 " + MAX_ALERTS + " 个提醒", "error");
-      return;
-    }
-    localAlerts.push({ id: null, price: "", enabled: false, triggered: false });
-    renderAlerts();
-    const inputs = document.querySelectorAll(".alert-price-input");
-    const last = inputs[inputs.length - 1];
-    if (last) last.focus();
-  }
-
   async function clearAll() {
     if (!confirm("确定清除全部提醒？")) return;
     localAlerts = [];
@@ -467,7 +458,6 @@
     $("btn-save").addEventListener("click", saveAlerts);
     $("btn-auto").addEventListener("pointerdown", rememberStep);
     $("btn-auto").addEventListener("click", autoGenerate);
-    $("btn-add").addEventListener("click", addAlert);
     $("btn-clear").addEventListener("click", clearAll);
     $("step-input").addEventListener("change", rememberStep);
   }
