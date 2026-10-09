@@ -269,7 +269,7 @@ https://gold-alert.xxxxx.workers.dev
    - XAUUSD 当前价格（来自 EA 上传的 MT5 价格）
    - EA 在线 / 离线状态
 4. 设置间隔（例如 `5`）
-5. 可「自动生成 ±5档」或手动添加价格（最多 10 个）
+5. 可「设定」生成上下各 5 档 + 当前整数价（最多 11 个）
 6. 点「保存设置」
 
 ### 功能说明
@@ -389,7 +389,7 @@ Authorization: Bearer <API_TOKEN>
 |------|------|------|
 | GET | `/api/status` | 当前价格、EA 在线状态 |
 | GET | `/api/alerts` | 提醒列表 |
-| POST | `/api/alerts` | 保存提醒（最多 10） |
+| POST | `/api/alerts` | 保存提醒（最多 11） |
 | DELETE | `/api/alerts/:id` | 删除单个提醒 |
 | POST | `/api/alerts/auto` | 按当前 EA 价格自动生成 ±5 档 |
 | POST | `/api/ea/heartbeat` | EA 心跳 + 上传价格 |
