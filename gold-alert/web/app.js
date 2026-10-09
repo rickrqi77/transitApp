@@ -418,6 +418,7 @@
       clearToken();
       showAuth();
     });
+    $("btn-save").addEventListener("pointerdown", rememberStep);
     $("btn-save").addEventListener("click", saveAlerts);
     $("btn-auto").addEventListener("pointerdown", rememberStep);
     $("btn-auto").addEventListener("click", autoGenerate);
