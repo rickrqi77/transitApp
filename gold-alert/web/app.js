@@ -17,6 +17,7 @@
   let stepHydrated = false;
   let capturedStep = null;
   let alertsPaused = false;
+  let alertsDirty = false;
 
   const $ = (id) => document.getElementById(id);
 
@@ -231,6 +232,7 @@
     const idx = Number(e.target.getAttribute("data-idx"));
     if (!Number.isInteger(idx) || !localAlerts[idx]) return;
     localAlerts[idx].price = e.target.value.trim();
+    alertsDirty = true;
   }
 
   function onArmClick(e) {
@@ -238,6 +240,7 @@
     if (!Number.isInteger(idx) || !localAlerts[idx]) return;
     localAlerts[idx].enabled = !localAlerts[idx].enabled;
     if (localAlerts[idx].enabled) localAlerts[idx].triggered = false;
+    alertsDirty = true;
     renderAlerts();
   }
 
@@ -245,6 +248,7 @@
     const idx = Number(e.currentTarget.getAttribute("data-idx"));
     if (!Number.isInteger(idx)) return;
     localAlerts.splice(idx, 1);
+    alertsDirty = true;
     renderAlerts();
   }
 
@@ -255,6 +259,14 @@
       enabled: a.enabled === true || a.enabled === 1,
       triggered: a.triggered === true || a.triggered === 1,
     }));
+  }
+
+  function alertsFingerprint(list) {
+    return (list || [])
+      .map(function (a) {
+        return [a.id, a.price, a.enabled ? 1 : 0, a.triggered ? 1 : 0].join(":");
+      })
+      .join("|");
   }
 
   // -------------------------------------------------------------------------
@@ -281,18 +293,29 @@
     return data;
   }
 
-  async function loadAlerts() {
+  async function loadAlerts(opts) {
     const data = await api("/api/alerts");
-    localAlerts = mapAlerts(data.alerts);
+    const next = mapAlerts(data.alerts);
+    if (opts && opts.skipIfUnchanged && alertsFingerprint(next) === alertsFingerprint(localAlerts)) {
+      return;
+    }
+    localAlerts = next;
+    alertsDirty = false;
     renderAlerts();
+  }
+
+  function canReloadAlertsFromServer() {
+    if (alertsDirty) return false;
+    const el = document.activeElement;
+    if (el && el.classList && el.classList.contains("alert-price-input")) return false;
+    return true;
   }
 
   async function refreshAll() {
     try {
       await refreshStatus();
-      // Only reload alerts from server if user is not mid-edit on an input
-      if (!document.activeElement || !document.activeElement.classList.contains("alert-price-input")) {
-        // Keep local edits until save — only load on first open / after save
+      if (canReloadAlertsFromServer()) {
+        await loadAlerts({ skipIfUnchanged: true });
       }
     } catch (e) {
       if (e.message === "Unauthorized") {
@@ -304,10 +327,17 @@
     }
   }
 
+  function onPageVisible() {
+    if (!getToken()) return;
+    if ($("app-screen").classList.contains("hidden")) return;
+    alertsDirty = false;
+    refreshAll().catch(function () {});
+  }
+
   function startRefresh() {
     stopRefresh();
     refreshTimer = setInterval(() => {
-      refreshStatus().catch(() => {});
+      refreshAll().catch(() => {});
     }, REFRESH_MS);
   }
 
@@ -493,6 +523,10 @@
     $("btn-clear").addEventListener("click", clearAll);
     $("step-input").addEventListener("change", rememberStep);
     $("btn-pause").addEventListener("click", togglePause);
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") onPageVisible();
+    });
+    window.addEventListener("pageshow", onPageVisible);
   }
 
   async function init() {
