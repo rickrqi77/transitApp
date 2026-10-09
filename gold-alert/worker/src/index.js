@@ -517,9 +517,7 @@ async function sendTelegramAlert(env, { triggerPrice, currentPrice }) {
     return { ok: false, error: "TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured" };
   }
 
-  const text =
-    `触发价：${formatNum(triggerPrice)}\n` +
-    `当前价：${formatNum(currentPrice)}`;
+  const text = `${formatNum(triggerPrice)} _ ${formatNum(currentPrice)}`;
 
   const apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
   const resp = await fetch(apiUrl, {

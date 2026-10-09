@@ -429,8 +429,7 @@ Authorization: Bearer <API_TOKEN>
 Telegram 消息示例：
 
 ```
-触发价：3983.25
-当前价：3983.31
+3983.25 _ 3983.31
 ```
 
 ---
