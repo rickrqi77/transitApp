@@ -1,0 +1,19 @@
+{
+  "name": "gold-alert",
+  "version": "1.0.0",
+  "private": true,
+  "description": "XAUUSD Gold Price Alert System - Cloudflare Worker + D1 + MT5 EA + Telegram",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "pages:deploy": "wrangler pages deploy ./web --project-name=alertdata --branch=main --commit-dirty=true",
+    "db:create": "wrangler d1 create gold-alert-db",
+    "db:migrate:local": "wrangler d1 execute gold-alert-db --local --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute gold-alert-db --remote --file=./schema.sql",
+    "validate": "node scripts/validate.mjs",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.148.0"
+  }
+}

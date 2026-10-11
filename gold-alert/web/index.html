@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>GOLD ALERT</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- Token unlock screen (token never hardcoded) -->
+  <div id="auth-screen" class="screen">
+    <div class="auth-box">
+      <h1 class="brand">GOLD ALERT</h1>
+      <p class="auth-hint">输入 API Token 解锁</p>
+      <input
+        id="token-input"
+        type="password"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="API Token"
+        class="input"
+      />
+      <button id="btn-unlock" class="btn btn-primary btn-block">解锁</button>
+      <p id="auth-error" class="error-msg hidden"></p>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app-screen" class="screen hidden">
+    <header class="header">
+      <h1 class="brand">GOLD ALERT</h1>
+      <button id="btn-logout" class="btn-ghost" type="button" title="清除 Token">退出</button>
+    </header>
+
+    <section class="hero-price">
+      <div class="symbol" id="symbol">XAUUSD</div>
+      <div class="label">当前价格</div>
+      <div class="price" id="current-price">--</div>
+      <div class="bid-ask">
+        <span>Bid <strong id="bid">--</strong></span>
+        <span>Ask <strong id="ask">--</strong></span>
+      </div>
+      <div id="ea-status" class="ea-status offline">
+        <span class="dot"></span>
+        <span id="ea-status-text">EA 离线</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <label class="field-label" for="step-input">间隔</label>
+      <div class="row">
+        <select id="step-input" class="input input-step" aria-label="间隔">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5" selected>5</option>
+          <option value="10">10</option>
+        </select>
+        <button id="btn-auto" class="btn btn-accent" type="button">设定</button>
+      </div>
+    </section>
+
+    <section class="actions actions-save">
+      <button id="btn-save" class="btn btn-primary btn-block" type="button">保存设置</button>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title-row">
+        <h2 class="panel-title">提醒价格</h2>
+        <span id="alerts-count" class="count-badge">触发 0 / 11</span>
+      </div>
+      <p class="panel-hint">设定后默认全部触发。不需要的点成「关闭」，再保存</p>
+      <ul id="alerts-list" class="alerts-list"></ul>
+    </section>
+
+    <section class="actions actions-bottom">
+      <button id="btn-clear" class="btn btn-danger" type="button">全部清除</button>
+      <button id="btn-pause" class="btn btn-pause" type="button">暂停提醒</button>
+    </section>
+
+    <div id="toast" class="toast hidden"></div>
+    <footer class="footer">
+      <span id="last-refresh">--</span>
+    </footer>
+  </div>
+
+  <script src="/app.js?v=13"></script>
+</body>
+</html>
