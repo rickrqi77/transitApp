@@ -255,14 +255,14 @@ https://gold-alert.xxxxx.workers.dev
 
 则：
 
-- 手机网页：`https://gold-alert.xxxxx.workers.dev/`
-- API 根地址：`https://gold-alert.xxxxx.workers.dev`
+- 手机网页：`https://alertdata.pages.dev/`
+- API 根地址：`https://alertdata.pages.dev` 或 Worker `https://gold-alert.xxxxx.workers.dev`
 
 ---
 
 ## 十、手机网页使用方法（iPhone Safari）
 
-1. Safari 打开：`https://gold-alert.xxxxx.workers.dev/`
+1. Safari 打开：`https://alertdata.pages.dev/`
 2. 输入你刚才设置的 **API Token**，点「解锁」
 3. 页面会显示：
    - **GOLD ALERT**

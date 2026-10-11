@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "pages:deploy": "wrangler pages deploy ./web --project-name=alertdata --branch=main --commit-dirty=true",
     "db:create": "wrangler d1 create gold-alert-db",
     "db:migrate:local": "wrangler d1 execute gold-alert-db --local --file=./schema.sql",
     "db:migrate:remote": "wrangler d1 execute gold-alert-db --remote --file=./schema.sql",
